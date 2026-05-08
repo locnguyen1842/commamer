@@ -6,7 +6,8 @@
 - ✅ **v1.1 Build Settings Window** — Phases 6-7 (shipped)
 - ✅ **v1.2 DB Migration Refactor** — Phases 8-9 (shipped)
 - ✅ **v1.3 Working Directory** — Phases 10-13 (shipped 2026-04-23)
-- ✅ **v1.4 Editor Multi-Mount Refactor** — Phases 14 (shipped 2026-04-23)
+- ✅ **v1.4 Editor Multi-Mount Refactor** — Phase 14 (shipped 2026-04-23)
+- 📋 **v1.5 Cross-Platform Execution** — Phase 15 (in progress)
 - 📋 **v2.0 Workspaces** — Phases (planned)
 
 ## Phases
@@ -152,6 +153,16 @@ Plans:
 
 </details>
 
+### Phase 15: Cross-Platform Execution
+
+**Goal:** Centralize command execution to work cross-platform by removing the hardcoded `#!/bin/bash` shebang from stored scripts and making the executor responsible for platform-appropriate shebang injection at runtime.
+**Plans:** 3 plans
+
+Plans:
+- [x] 15-01: Centralize shebang handling (script.go + executor.go core)
+- [x] 15-02: Fix display commands and terminal execution
+- [x] 15-03: Tests and verification
+
 ### 📋 v2.0 Workspaces (Planned)
 
 **Milestone Goal:** Named project contexts with sidebar switcher, cloud sync, and command sharing.
@@ -165,7 +176,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
+Phases execute in numeric order: 10 → 11 → 12 → 13 → 14 -> 15
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -183,3 +194,4 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | 12. Settings UI | v1.3 | 3/3 | Complete    | 2026-04-23 |
 | 13. Command Editor & List UI | v1.3 | 3/3 | Complete | 2026-04-23 |
 | 14. Editor Multi-Mount Refactor | v1.4 | 3/3 | Complete | 2026-04-23 |
+| 15. Cross-Platform Execution | v1.5 | 1/3 | Complete | 2026-05-04 |

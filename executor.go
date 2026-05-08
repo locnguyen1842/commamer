@@ -68,11 +68,21 @@ func writeTempScript(content string) (string, error) {
 }
 
 // BuildFinalCommand builds a display string showing the variable values used.
-func BuildFinalCommand(variables map[string]string) string {
-	if len(variables) == 0 {
-		return "bash <script>"
+// Uses the platform-appropriate shell name (basename of e.shell) instead of hardcoded "bash".
+func (e *Executor) BuildFinalCommand(variables map[string]string) string {
+	shellName := e.shell
+	// Use basename for display (e.g., "/bin/zsh" → "zsh", "/bin/sh" → "sh")
+	if idx := strings.LastIndex(shellName, "/"); idx != -1 {
+		shellName = shellName[idx+1:]
 	}
-	parts := []string{"bash <script>"}
+	if shellName == "" {
+		shellName = "sh"
+	}
+
+	if len(variables) == 0 {
+		return shellName + " <script>"
+	}
+	parts := []string{shellName + " <script>"}
 	for k, v := range variables {
 		parts = append(parts, fmt.Sprintf("%s=%q", k, v))
 	}
@@ -97,23 +107,29 @@ type OutputChunk struct {
 
 // ExecuteScript runs a resolved script (all {{var}} already replaced) and streams output via callback.
 func (e *Executor) ExecuteScript(scriptContent string, workingDir string, onChunk func(OutputChunk)) ExecutionResult {
+	// Strip any existing shebang from stored content (backward compat with old DB records)
+	scriptContent = stripShebang(scriptContent)
+
+	// Add platform-appropriate shebang at execution time
+	if runtime.GOOS != "windows" {
+		scriptContent = "#!/bin/sh\n" + scriptContent
+	}
+
 	tmpPath, err := writeTempScript(scriptContent)
 	if err != nil {
 		return ExecutionResult{Error: err.Error(), ExitCode: -1}
 	}
 	defer os.Remove(tmpPath)
 
+	if runtime.GOOS != "windows" {
+		os.Chmod(tmpPath, 0755)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), defaultExecTimeout)
 	defer cancel()
 
 	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		// Windows: cmd /C tmp.bat
-		cmd = exec.CommandContext(ctx, e.shell, e.flag, tmpPath)
-	} else {
-		// Unix: shell can execute the temp script file directly.
-		cmd = exec.CommandContext(ctx, e.shell, tmpPath)
-	}
+	cmd = exec.CommandContext(ctx, e.shell, e.flag, tmpPath)
 	if workingDir != "" {
 		cmd.Dir = workingDir
 	}
@@ -200,15 +216,23 @@ func (e *Executor) ExecuteScript(scriptContent string, workingDir string, onChun
 	return result
 }
 
+// stripShebang removes any shebang line (#!...) from the beginning of script content.
+// Used for backward compatibility with old DB records that stored scripts with #!/bin/bash.
+func stripShebang(content string) string {
+	s := strings.TrimSpace(content)
+	if strings.HasPrefix(s, "#!") {
+		if idx := strings.Index(s, "\n"); idx != -1 {
+			return s[idx+1:]
+		}
+		return ""
+	}
+	return s
+}
+
 // OpenInTerminal opens a terminal and runs the resolved script.
 // Each LaunchFn receives the raw script body and handles its own quoting.
 func (e *Executor) OpenInTerminal(terminalID string, scriptContent string, workingDir string) error {
-	body := scriptContent
-	if strings.HasPrefix(body, "#!") {
-		if idx := strings.Index(body, "\n"); idx != -1 {
-			body = body[idx+1:]
-		}
-	}
+	body := stripShebang(scriptContent)
 	body = strings.TrimSpace(body)
 	defs := e.terminalDefs()
 

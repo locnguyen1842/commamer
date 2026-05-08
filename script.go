@@ -8,22 +8,30 @@ import (
 
 var templateVarRe = regexp.MustCompile(`\{\{(\w+)\}\}`)
 
-const scriptHeader = "#!/bin/bash"
-
-// GenerateScript wraps a body in a shebang header.
+// GenerateScript returns the script body trimmed of surrounding whitespace with a trailing newline.
+// No shebang is prepended — the executor adds a platform-appropriate shebang at execution time.
 func GenerateScript(body string) string {
 	body = strings.TrimSpace(body)
-	return scriptHeader + "\n\n" + body + "\n"
+	if body == "" {
+		return ""
+	}
+	return body + "\n"
 }
 
-// ParseScriptBody strips the shebang header and returns the user-editable body.
+// ParseScriptBody strips any shebang line (#!...) from the beginning of stored script content.
+// Handles both old format (scripts stored with #!/bin/bash in the DB) and new format
+// (scripts stored without a shebang) transparently.
 func ParseScriptBody(scriptContent string) string {
 	s := strings.TrimSpace(scriptContent)
-	if strings.HasPrefix(s, scriptHeader) {
-		s = strings.TrimPrefix(s, scriptHeader)
-		s = strings.TrimLeft(s, "\n")
+	if strings.HasPrefix(s, "#!") {
+		if idx := strings.Index(s, "\n"); idx != -1 {
+			s = s[idx+1:]
+		} else {
+			// Entire content is just a shebang line — no body
+			return ""
+		}
 	}
-	return s
+	return strings.TrimSpace(s)
 }
 
 // ExtractTemplateVars returns unique variable names from {{var}} patterns, in order of first appearance.
